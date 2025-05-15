@@ -100,5 +100,5 @@ RUN source activate main && \
 # 작업 디렉토리 설정
 WORKDIR /workspace
 
-# 기본 실행 명령 설정
+# 기본 실행 명령 설정 
 CMD ["bash", "-c", "source activate main && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''"]
