@@ -1,63 +1,28 @@
-# NVIDIA CUDA 기반 이미지 사용 (PyTorch와 JAX를 위한 CUDA 12 지원)
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+# CUDA 12.1, Python 3.10 이미지 사용
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 
-# 환경 변수 설정
+# 비대화 모드 설정 (tzdata 입력 방지용)
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV PATH="/opt/conda/bin:${PATH}"
 
-# 기본 패키지 설치
+# 시스템 패키지 설치 + tzdata 시간대 설정
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    git \
-    curl \
-    ca-certificates \
-    libjpeg-dev \
-    libpng-dev \
-    libglew-dev \
-    libgl1-mesa-dev \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    libxrandr2 \
-    wget \
-    ffmpeg \
-    libavformat-dev \
-    libavcodec-dev \
-    libswscale-dev \
-    libavutil-dev \
-    libavdevice-dev \
-    libavfilter-dev \
-    libswresample-dev \
-    patchelf \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    tzdata \
+    ffmpeg libavutil-dev libavcodec-dev libavformat-dev libswscale-dev \
+    libgl1-mesa-glx libosmesa6-dev libglew-dev libglfw3 libglfw3-dev \
+    patchelf curl git unzip cmake gcc g++ python3-pip python3-dev \
+ && ln -fs /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+ && dpkg-reconfigure --frontend noninteractive tzdata \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Miniconda 설치
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.11.0-2-Linux-x86_64.sh -O miniconda.sh && \
-    bash miniconda.sh -b -p /opt/conda && \
-    rm miniconda.sh
+# pip 업그레이드
+RUN pip install --upgrade pip setuptools wheel
 
-# 기본 Conda 환경 설정
-RUN conda config --add channels conda-forge && \
-    conda config --add channels pytorch && \
-    conda config --set channel_priority flexible
-
-# 메인 환경 생성 (Python 3.10)
-RUN conda create -n main python=3.10 -y
-ENV PATH="/opt/conda/envs/main/bin:${PATH}"
-SHELL ["/bin/bash", "-c"]
-
-# 기본 패키지 설치 
-RUN conda install -n main -y \
+# 주요 패키지 설치
+RUN pip install \
     jupyterlab \
     pandas>=1.2 \
-    numpy=1.26.4 \
-    scipy=1.12.0 \
     scikit-learn>=0.22 \
-    opencv>=4.2 \
+    opencv-python>=4.2 \
     pyyaml>=5.1 \
     yacs>=0.1.6 \
     einops>=0.3 \
@@ -66,39 +31,22 @@ RUN conda install -n main -y \
     tqdm \
     matplotlib \
     simplejson \
-    pip \
-    && conda clean -ya
-
-# PyTorch 설치 (CUDA 12.1 지원)
-RUN conda install -n main -y pytorch=2.5.1 torchvision=0.20.1 pytorch-cuda=12.1 -c pytorch -c nvidia && conda clean -ya
-
-# MuJoCo 및 추가 패키지 설치
-RUN source activate main && \
-    pip install --no-cache-dir \
+    fvcore \
+    av \
+    numpy==1.26.4 \
+    scipy==1.12.0 \
     mujoco==2.3.7 \
     mujoco-py==2.1.2.14 \
     gym==0.20.0 \
+    flax==0.7.5 \
     dm_control==1.0.14 \
     brax==0.0.16 \
     imageio \
     tfp-nightly==0.20.0.dev20230524 \
     wandb \
-    ml_collections \
-    fvcore \
-    av
+    ml_collections
 
-# JAX 설치 (CUDA 12 지원)
-RUN source activate main && \
-    pip install --no-cache-dir \
-    "jax[cuda12_pip]==0.4.19" --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
-    flax==0.7.5
+# JAX 설치 (CUDA 12용)
+RUN pip install --upgrade "jax[cuda12_pip]==0.4.19" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
-# TimeSformer 관련 추가 패키지 설치
-RUN source activate main && \
-    pip install --no-cache-dir einops>=0.3
-
-# 작업 디렉토리 설정
-WORKDIR /workspace
-
-# 기본 실행 명령 설정
-CMD ["bash", "-c", "source activate main && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''"]
+CMD ["/bin/bash"]
