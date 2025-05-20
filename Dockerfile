@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # pip 업그레이드
 RUN pip install --upgrade pip setuptools wheel
 
-# 주요 패키지 설치
+# 주요 패키지 설치 (gym → gymnasium으로 대체)
 RUN pip install \
     jupyterlab \
     pandas>=1.2 \
@@ -37,7 +37,7 @@ RUN pip install \
     scipy==1.12.0 \
     mujoco==2.3.7 \
     mujoco-py==2.1.2.14 \
-    gym==0.20.0 \
+    gymnasium \
     flax==0.7.5 \
     dm_control==1.0.14 \
     brax==0.0.16 \
