@@ -1,6 +1,6 @@
 from bro.bro_learner import BRO
 from replay_buffer import ParallelReplayBuffer
-from utils import mute_warning, log_to_wandb_if_time_to, evaluate_if_time_to, make_env
+# from utils import mute_warning, log_to_wandb_if_time_to, evaluate_if_time_to, make_env
 
 import argparse
 import pathlib
@@ -14,6 +14,7 @@ import utils
 import numpy as np
 import torch
 
+from gym.vector import make as vector_make
 
 
 if __name__ == "__main__":
@@ -31,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--render_mode", default="rgb_array")  # "human" or "rgb_array".
     # NOTE: to get (nicer) 'human' rendering to work, you need to fix the compatibility issue between mujoco>3.0 and gymnasium: https://github.com/Farama-Foundation/Gymnasium/issues/749
     parser.add_argument("--log_video", default="True")
+    parser.add_argument("--reference_video_path", default="./NIL/ref/sample_reference_video.mp4")
     args = parser.parse_args()
 
     kwargs = vars(args).copy()
@@ -41,17 +43,25 @@ if __name__ == "__main__":
     print(f"arguments: {kwargs}")
 
     # Log directory
-    data_path = "/vid_logs"
+    data_path = "./vid_logs"
     log_dir = data_path + "/" + "basketball_test" + time.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     mylogger = logger.Logger(log_dir=log_dir)
 
     # TODO Generated reference video
+    # reference video path
+    reference_video_path = args.reference_video_path
+    print(f"reference video path: {reference_video_path}")
     # generated_video = ...
 
     # TODO 가비아에서 make custom env 오류 해결
+    num_seeds = 10
+    # env = vector_make("Humanoid-v4", num_envs=num_seeds, render_mode="rgb_array")
+
     env = gym.make("Humanoid-v5", render_mode="rgb_array")
+    # env = gym.make("Humanoid-v5", render_mode="rgb_array", **kwargs)
+    # env = GenerateMaskWrapper(env)
     # env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
 
     seed = 0
@@ -60,9 +70,12 @@ if __name__ == "__main__":
     # agent
     agent = BRO(
         seed,
-        env.observation_space.sample()[0, np.newaxis],
-        env.action_space.sample()[0, np.newaxis],
-        num_seeds=10,
+        # env.observation_space.sample()[0, np.newaxis],
+        # env.action_space.sample()[0, np.newaxis],
+        env.observation_space.sample()[None, ...],
+        env.action_space.sample()[None, ...],
+        # num_seeds=10,
+        num_seeds=1,
         updates_per_step=10,
         distributional=True,
     )
@@ -70,32 +83,51 @@ if __name__ == "__main__":
     replay_buffer = ParallelReplayBuffer(env.observation_space, env.action_space.shape[-1], 1000000, num_seeds=10)
     
     ob, _ = env.reset()
+    # ob_batch = np.repeat(ob[None, :], 10, axis=0)
+    ob_batch = ob[None, ...]
     
     seg_masks = []
     generated_seg_masks= []
 # TODO for step in range(len(generated_video))
     for step in range(1000):
-        actions = agent.sample_actions_o(ob, temperature=1.0)
-
+        # actions = agent.sample_actions_o(ob, temperature=1.0)
+        # actions = agent.sample_actions_o(ob_batch, temperature=1.0)
+        actions = agent.sample_actions_o(ob_batch, temperature=1.0)
+        actions  = actions.squeeze(0)
         next_ob, rewards, terminated, truncated, info = env.step(actions)
 
         # extract joint positions / torques / velocities as numpy array
         # TODO past frame action, foot contact with ground, stability
         joint_positions = []
+        model = env.unwrapped.model
         data = env.unwrapped.data
-        for i in range(data.nq):
-            joint_positions.append(data.qpos[i])
-        joint_positions = np.array(joint_positions)
+        nq = model.nq
+        nv = model.nv 
+        nu = model.nu
+        
+        # joint positions
+        joint_positions = np.array(data.qpos[:nq])
 
-        joint_velocities = data.qvel.copy()
-        joint_velcities = np.array(joint_velocities)
-        joint_torques = data.actuator_force.copy()
-        joint_torques = np.array(joint_torques)
+        # joint velocities
+        joint_velocities = np.array(data.qvel[:nv])
+
+        # joint torques (actuator forces)
+        joint_torques = np.array(data.actuator_force[:nu])
+        
+        # for i in range(data.nq):
+        #     joint_positions.append(data.qpos[i])
+        # joint_positions = np.array(joint_positions)
+
+        # joint_velocities = data.qvel.copy()
+        # joint_velcities = np.array(joint_velocities)
+        # joint_torques = data.actuator_force.copy()
+        # joint_torques = np.array(joint_torques)
+        
         # joint_torques = data.qfrc_actuator.copy()
 
         # TODO extract segmenation masked image -> 우리 환경에서 제대로 작동하는지 확인
-        seg_mask = env.render(mode="depth", camera_name="track")
-        seg_masks.append(seg_mask)
+        # seg_mask = env.render(mode="depth", camera_name="track")
+        # seg_masks.append(seg_mask)
 
         # TODO extract segmentation masked image from generated video
         # generated_seg_mask = SAM(generated_video[step])
@@ -116,8 +148,10 @@ if __name__ == "__main__":
 
         masks = env.generate_masks(terminated, truncated)
         if not truncated:
-            replay_buffer.insert(ob, actions, nil_reward, masks, truncated, next_ob)
-        ob = next_ob
+            # replay_buffer.insert(ob, actions, nil_reward, masks, truncated, next_ob)
+            replay_buffer.insert(ob_batch, actions, nil_reward, masks, truncated, next_ob)
+        # ob = next_ob
+        ob_batch = next_ob
         # TODO ob, terminated, truncated, reward_mask = env.reset_when_done(ob, terminated, truncated)
         batches = replay_buffer.sample_parallel_multibatch(batch_size=256, num_seeds=10)
         infos = agent.update(batches)
