@@ -1,2 +1,3 @@
-### 가비아
-export MUFJOCO_GL=egl
+'''
+python train.py --env h1-walk-v0
+'''

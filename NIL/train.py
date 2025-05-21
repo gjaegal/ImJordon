@@ -13,6 +13,7 @@ import logger
 import utils
 import numpy as np
 import torch
+import envs
 
 os.environ["MUJOCO_GL"] = "egl"
 
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     print(f"arguments: {kwargs}")
 
     # Log directory
-    data_path = "/vid_logs"
+    data_path = "/home/jordon/ImJordon/NIL/vid_logs"
     log_dir = data_path + "/" + "basketball_test" + time.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -53,6 +54,8 @@ if __name__ == "__main__":
 
     # TODO 가비아에서 make custom env 오류 해결
     env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
+    # env = gym.make("Humanoid-v5", render_mode=args.render_mode)
+
 
     seed = 0
     fps = 4
@@ -62,7 +65,7 @@ if __name__ == "__main__":
         seed,
         env.observation_space.sample()[0, np.newaxis],
         env.action_space.sample()[0, np.newaxis],
-        num_seeds=10,
+        num_seeds=1,
         updates_per_step=10,
         distributional=True,
     )
@@ -70,14 +73,19 @@ if __name__ == "__main__":
     replay_buffer = ParallelReplayBuffer(env.observation_space, env.action_space.shape[-1], 1000000, num_seeds=10)
     
     ob, _ = env.reset()
+    ob_batch = ob[None, ...]
     
     seg_masks = []
     generated_seg_masks= []
-# TODO for step in range(len(generated_video))
+    # TODO for step in range(len(generated_video))
     for step in range(1000):
-        actions = agent.sample_actions_o(ob, temperature=1.0)
+        import pdb; pdb.set_trace()
+        actions = agent.sample_actions_o(ob_batch, temperature=1.0)
+        actions = actions.squeeze(0)
+        
 
         next_ob, rewards, terminated, truncated, info = env.step(actions)
+        print("STEP: ", step)
 
         # extract joint positions / torques / velocities as numpy array
         # TODO past frame action, foot contact with ground, stability
@@ -94,8 +102,8 @@ if __name__ == "__main__":
         # joint_torques = data.qfrc_actuator.copy()
 
         # TODO extract segmenation masked image -> 우리 환경에서 제대로 작동하는지 확인
-        seg_mask = env.render(mode="depth", camera_name="track")
-        seg_masks.append(seg_mask)
+        # seg_mask = env.render(mode="depth", camera_name="track")
+        # seg_masks.append(seg_mask)
 
         # TODO extract segmentation masked image from generated video
         # generated_seg_mask = SAM(generated_video[step])
@@ -116,8 +124,8 @@ if __name__ == "__main__":
 
         masks = env.generate_masks(terminated, truncated)
         if not truncated:
-            replay_buffer.insert(ob, actions, nil_reward, masks, truncated, next_ob)
-        ob = next_ob
+            replay_buffer.insert(ob_batch, actions, nil_reward, masks, truncated, next_ob)
+        ob_batch = next_ob
         # TODO ob, terminated, truncated, reward_mask = env.reset_when_done(ob, terminated, truncated)
         batches = replay_buffer.sample_parallel_multibatch(batch_size=256, num_seeds=10)
         infos = agent.update(batches)
