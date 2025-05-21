@@ -1,6 +1,6 @@
 from bro.bro_learner import BRO
 from replay_buffer import ParallelReplayBuffer
-from utils import mute_warning, log_to_wandb_if_time_to, evaluate_if_time_to, make_env
+# from utils import mute_warning, log_to_wandb_if_time_to, evaluate_if_time_to, make_env
 
 import argparse
 import pathlib
@@ -14,6 +14,7 @@ import utils
 import numpy as np
 import torch
 
+os.environ["MUJOCO_GL"] = "egl"
 
 
 if __name__ == "__main__":
@@ -51,8 +52,7 @@ if __name__ == "__main__":
     # generated_video = ...
 
     # TODO 가비아에서 make custom env 오류 해결
-    env = gym.make("Humanoid-v5", render_mode="rgb_array")
-    # env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
+    env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
 
     seed = 0
     fps = 4

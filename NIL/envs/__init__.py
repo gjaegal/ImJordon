@@ -1,9 +1,9 @@
-from gym.envs.registration import registry
-
-registry.register(
-    id='Walk-v0', 
-    entry_point='envs.mujoco:Walk2Env',
+from gymnasium.envs import register
+register(
+    id="h1-walk-v0",
+    entry_point='envs.mujoco:Walk',
 )
+print("REGISTERED h1-walk-v0")
 
 # from .env import ROBOTS, TASKS
 # 

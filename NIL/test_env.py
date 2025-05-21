@@ -8,6 +8,9 @@ import os
 import logger
 import utils
 
+import envs
+os.environ["MUJOCO_GL"] = "glfw"
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="environment test")
@@ -23,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--sensors", default="")
     parser.add_argument("--render_mode", default="rgb_array")  # "human" or "rgb_array".
     # NOTE: to get (nicer) 'human' rendering to work, you need to fix the compatibility issue between mujoco>3.0 and gymnasium: https://github.com/Farama-Foundation/Gymnasium/issues/749
-    parser.add_argument("--log_video", default="True")
+    parser.add_argument("--logvid", default="True")
     args = parser.parse_args()
 
     kwargs = vars(args).copy()
@@ -35,7 +38,7 @@ if __name__ == "__main__":
 
     print(f"Test onscreen mode...")
     print(gym.envs.registry.keys())
-    env = gym.make("Humanoid-v5", render_mode="rgb_array")
+    env = gym.make("h1-walk-v0", render_mode="rgb_array")
     # env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
 
     ob, _ = env.reset()
@@ -68,7 +71,7 @@ if __name__ == "__main__":
     mylogger = logger.Logger(log_dir=log_dir)
 
     # Test video logging
-    if args.log_video == "True":
+    if args.logvid == "True":
         trajs = utils.rollout_n_trajectories(env, policy=None, ntraj=5, max_traj_length=5000, render=True)
         mylogger.log_trajs_as_videos(trajs, step=0, max_videos_to_save=2, fps=10, video_title="test_basketball")
     else:
