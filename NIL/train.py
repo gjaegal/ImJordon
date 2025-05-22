@@ -14,6 +14,7 @@ import utils
 import numpy as np
 import torch
 import envs
+import jax.numpy as jnp
 
 os.environ["MUJOCO_GL"] = "egl"
 
@@ -59,46 +60,57 @@ if __name__ == "__main__":
 
     seed = 0
     fps = 4
-
     # agent
+    print("observation space: ", env.observation_space.sample().shape)
+    print("action space: ", env.action_space.sample().shape)
+    dummy_obs = jnp.zeros((1, 51))
+    dummy_ac = jnp.zeros((1, 19))
+    updates_per_step = 10
+
     agent = BRO(
         seed,
-        env.observation_space.sample()[0, np.newaxis],
-        env.action_space.sample()[0, np.newaxis],
+        dummy_obs, # env.observation_space.sample()[0, np.newaxis],
+        dummy_ac, # env.action_space.sample()[0, np.newaxis],
         num_seeds=1,
-        updates_per_step=10,
+        updates_per_step=updates_per_step,
         distributional=True,
     )
     # Replay buffer
-    replay_buffer = ParallelReplayBuffer(env.observation_space, env.action_space.shape[-1], 1000000, num_seeds=10)
+    replay_buffer = ParallelReplayBuffer(env.observation_space, env.action_space.shape[-1], 1000000, num_seeds=1)
     
     ob, _ = env.reset()
-    ob_batch = ob[None, ...]
-    
+    # ob_batch = ob[None, ...]
+    # ob_batch = np.expand_dims(ob, axis=0)
+
+    start_training_step = 5
     seg_masks = []
     generated_seg_masks= []
     # TODO for step in range(len(generated_video))
     for step in range(1000):
-        print("ob", ob)
+        if ob.shape[0] != 1:
+            ob = ob.reshape(1, -1)
+        print("ob", ob.shape)
+
         actions = agent.sample_actions_o(ob, temperature=1.0)
         actions = actions.squeeze(0)
-        
+
+        print("ac", actions.shape)
 
         next_ob, rewards, terminated, truncated, info = env.step(actions)
         print("STEP: ", step)
 
         # extract joint positions / torques / velocities as numpy array
         # TODO past frame action, foot contact with ground, stability
-        joint_positions = []
-        data = env.unwrapped.data
-        for i in range(data.nq):
-            joint_positions.append(data.qpos[i])
-        joint_positions = np.array(joint_positions)
+        # joint_positions = []
+        # data = env.unwrapped.data
+        # for i in range(data.nq):
+        #     joint_positions.append(data.qpos[i])
+        # joint_positions = np.array(joint_positions)
 
-        joint_velocities = data.qvel.copy()
-        joint_velcities = np.array(joint_velocities)
-        joint_torques = data.actuator_force.copy()
-        joint_torques = np.array(joint_torques)
+        # joint_velocities = data.qvel.copy()
+        # joint_velcities = np.array(joint_velocities)
+        # joint_torques = data.actuator_force.copy()
+        # joint_torques = np.array(joint_torques)
         # joint_torques = data.qfrc_actuator.copy()
 
         # TODO extract segmenation masked image -> 우리 환경에서 제대로 작동하는지 확인
@@ -122,21 +134,24 @@ if __name__ == "__main__":
         # l2_reward = IMAGE_SIMULARTIY(CLIP())
         nil_reward = alpha* l2_reward + beta * iou_reward + gamma * regularization_reward
 
-        masks = env.generate_masks(terminated, truncated)
+        # TODO masks = env.generate_masks(terminated, truncated)
+        masks = [1.0]
         if not truncated:
             replay_buffer.insert(ob, actions, nil_reward, masks, truncated, next_ob)
         ob = next_ob
         # TODO ob, terminated, truncated, reward_mask = env.reset_when_done(ob, terminated, truncated)
-        batches = replay_buffer.sample_parallel_multibatch(batch_size=256, num_seeds=10)
-        infos = agent.update(batches)
+
+        # Train
+        if step > start_training_step:
+            batches = replay_buffer.sample_parallel_multibatch(batch_size=128, num_batches=10)
+            # import pdb; pdb.set_trace()
+            infos = agent.update(batches, updates_per_step, step)
         
 
 
 
-
-    # Simulate with trained agent
     if args.log_video == "True":
-        # simulation video의 각 프레임 별 [obs, image_obs, seg_obs, acs, rews, next_obs, terminals, seg_positions, seg_velocities, seg_torques]를 numpy array로 반환
+        # simulate with trained agent
         trajs = utils.rollout_n_trajectories(env, policy=agent, ntraj=1, max_traj_length=5000, render=True, seg_render=True)
 
         # tensorboard에 video 형식으로 저장
