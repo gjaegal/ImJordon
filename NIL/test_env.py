@@ -38,8 +38,8 @@ if __name__ == "__main__":
 
     print(f"Test onscreen mode...")
     print(gym.envs.registry.keys())
-    env = gym.make("h1-walk-v0", render_mode="rgb_array")
-    # env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
+    # env = gym.make("h1-walk-v0", render_mode="rgb_array")
+    env = gym.make(args.env, render_mode=args.render_mode, **kwargs)
 
     ob, _ = env.reset()
 

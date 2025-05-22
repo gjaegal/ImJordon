@@ -188,6 +188,17 @@ class HumanoidEnv(MujocoEnv, gym.utils.EzPickle):
 
     def render(self):
         return self.task.render()
+    
+    def generate_masks(self, terms, truns):
+        masks = []
+        for term, trun in zip(terms, truns):
+            if not term or trun:
+                mask = 1.0
+            else:
+                mask = 0.0
+            masks.append(mask)
+        masks = np.array(masks)
+        return masks
 
 
 if __name__ == "__main__":

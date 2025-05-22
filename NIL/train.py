@@ -43,8 +43,8 @@ if __name__ == "__main__":
     print(f"arguments: {kwargs}")
 
     # Log directory
-    data_path = "/home/jordon/ImJordon/NIL/vid_logs"
-    log_dir = data_path + "/" + "basketball_test" + time.strftime("%Y-%m-%d_%H-%M-%S")
+    data_path = "../vid_logs"
+    log_dir = data_path + "/" + "walk_test_" + time.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     mylogger = logger.Logger(log_dir=log_dir)
@@ -79,8 +79,8 @@ if __name__ == "__main__":
     generated_seg_masks= []
     # TODO for step in range(len(generated_video))
     for step in range(1000):
-        import pdb; pdb.set_trace()
-        actions = agent.sample_actions_o(ob_batch, temperature=1.0)
+        print("ob", ob)
+        actions = agent.sample_actions_o(ob, temperature=1.0)
         actions = actions.squeeze(0)
         
 
@@ -124,8 +124,8 @@ if __name__ == "__main__":
 
         masks = env.generate_masks(terminated, truncated)
         if not truncated:
-            replay_buffer.insert(ob_batch, actions, nil_reward, masks, truncated, next_ob)
-        ob_batch = next_ob
+            replay_buffer.insert(ob, actions, nil_reward, masks, truncated, next_ob)
+        ob = next_ob
         # TODO ob, terminated, truncated, reward_mask = env.reset_when_done(ob, terminated, truncated)
         batches = replay_buffer.sample_parallel_multibatch(batch_size=256, num_seeds=10)
         infos = agent.update(batches)
