@@ -84,7 +84,7 @@ if __name__ == "__main__":
     seg_masks = []
     generated_seg_masks= []
     # TODO for step in range(len(generated_video))
-    for step in range(1000):
+    for step in range(20):
         if ob.shape[0] != 1:
             ob = ob.reshape(1, -1)
         print("ob", ob.shape)
