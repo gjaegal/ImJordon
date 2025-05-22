@@ -99,6 +99,13 @@ if __name__ == "__main__":
 
         # extract joint positions / torques / velocities as numpy array
         # TODO past frame action, foot contact with ground, stability
+        base_env = env
+        while hasattr(base_env, 'env'):
+            base_env = base_env.env
+        position, velocity, torque = base_env.get_observations()
+        # position: 19 dim
+        # velocity: 19 dim
+        
         # joint_positions = []
         # data = env.unwrapped.data
         # for i in range(data.nq):
@@ -150,7 +157,7 @@ if __name__ == "__main__":
 
     if args.log_video == "True":
         # simulate with trained agent
-        trajs = utils.rollout_n_trajectories(env, policy=agent, ntraj=1, max_traj_length=5000, render=True, seg_render=True)
+        trajs = utils.rollout_n_trajectories(env, policy=agent, ntraj=1, max_traj_length=5000, render=True, seg_render=False)
 
         # tensorboard에 video 형식으로 저장
         mylogger.log_trajs_as_videos(trajs, step=0, max_videos_to_save=1, fps=10, video_title="test_basketball")

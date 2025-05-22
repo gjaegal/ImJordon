@@ -189,16 +189,58 @@ class HumanoidEnv(MujocoEnv, gym.utils.EzPickle):
     def render(self):
         return self.task.render()
     
-    def generate_masks(self, terms, truns):
-        masks = []
-        for term, trun in zip(terms, truns):
-            if not term or trun:
-                mask = 1.0
-            else:
-                mask = 0.0
-            masks.append(mask)
-        masks = np.array(masks)
-        return masks
+    
+    # def generate_masks(self, terms, truns):
+    #     masks = []
+    #     for term, trun in zip(terms, truns):
+    #         if not term or trun:
+    #             mask = 1.0
+    #         else:
+    #             mask = 0.0
+    #         masks.append(mask)
+    #     masks = np.array(masks)
+    #     return masks
+    
+    def get_observations(self):
+        # self.tasks : observationwrapper(Walk, ...)를 부름
+        # ._env 까지가 Walk(Task)를 부르고 Task의 __init__(robot="H1")을 부름
+        position = self.task._env.robot.joint_angles()
+        velocity = self.task._env.robot.joint_velocities()
+        torque = self.task._env.robot.actuator_forces()
+
+        # return self.task.get_obs()
+        return position, velocity, torque
+    
+    def seg_render(self):
+        model = self.model
+        data = self.data
+        scene = mujoco.MjvScene(model, maxgeom=1000)
+        cam = mujoco.MjvCamera()
+        opt = mujoco.MjvOption()
+
+        # Create offscreen rendering context
+        viewport = mujoco.MjrRect(0, 0, 256, 256)
+        con = mujoco.MjrContext(model, mujoco.mjtFontScale.mjFONTSCALE_150)
+
+        # Update scene from current data
+        mujoco.mjv_updateScene(model, data, opt, None, cam, mujoco.mjtCatBit.mjCAT_ALL, scene)
+
+        # Render to offscreen buffer
+        mujoco.mjr_render(viewport, scene, con)
+
+        # Read RGB and segmentation buffer
+        rgb = np.zeros((viewport.height, viewport.width, 3), dtype=np.uint8)
+        depth = np.zeros((viewport.height, viewport.width), dtype=np.float32)
+        segmentation = np.zeros((viewport.height, viewport.width, 2), dtype=np.uint8)
+
+        mujoco.mjr_readPixels(rgb, depth, viewport, segmentation, con)
+
+        # Extract geom IDs (first channel of segmentation)
+        geom_id_mask = segmentation[..., 0]
+
+        # Create a binary mask: robot = anything not -1
+        binary_mask = (geom_id_mask != 255).astype(np.uint8)
+        return binary_mask
 
 
 if __name__ == "__main__":

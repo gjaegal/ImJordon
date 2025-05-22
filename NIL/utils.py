@@ -13,9 +13,17 @@ def rollout_trajectory(env, policy, max_traj_length, render=False, seg_render=Fa
     steps = 0
     while True:
         if render:
-            # render image of the simulated env
-            rgb_img = env.render()
-            image_obs.append(rgb_img)
+            if seg_render:
+                base_env = env
+                while hasattr(base_env, 'env'):
+                    base_env = base_env.env
+                # seg_img = base_env.seg_render()
+                # image_obs.append(seg_img)
+                # print("seg_Img", seg_img)
+            else:
+                # render image of the simulated env
+                rgb_img = env.render()
+                image_obs.append(rgb_img)
         # if render and seg_render:
             # render segmentation mask image
             # seg_mask = env.render(mode="depth", camera_name="track")
