@@ -79,8 +79,6 @@ if __name__ == "__main__":
     replay_buffer = ParallelReplayBuffer(env.observation_space, env.action_space.shape[-1], 1000000, num_seeds=1)
     
     ob, _ = env.reset()
-    # ob_batch = ob[None, ...]
-    # ob_batch = np.expand_dims(ob, axis=0)
 
     start_training_step = 5
     seg_masks = []
