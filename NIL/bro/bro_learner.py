@@ -110,7 +110,7 @@ def _do_multiple_updates(
             temp,
             optimism,
             regularizer,
-            jax.tree_map(lambda x: jnp.take(x, i, axis=1), batches),
+            jax.tree_util.tree_map(lambda x: jnp.take(x, i, axis=1), batches),
             discount,
             tau,
             target_entropy,

@@ -13,24 +13,35 @@ def rollout_trajectory(env, policy, max_traj_length, render=False, seg_render=Fa
     steps = 0
     while True:
         if render:
-            # render image of the simulated env
-            rgb_img = env.render()
-            image_obs.append(rgb_img)
-        if render and seg_render:
+            if seg_render:
+                base_env = env
+                while hasattr(base_env, 'env'):
+                    base_env = base_env.env
+                # seg_img = base_env.seg_render()
+                # image_obs.append(seg_img)
+                # print("seg_Img", seg_img)
+            else:
+                # render image of the simulated env
+                rgb_img = env.render()
+                image_obs.append(rgb_img)
+        # if render and seg_render:
             # render segmentation mask image
-            seg_mask = env.render(mode="depth", camera_name="track")
-            seg_obs.append(seg_mask)
+            # seg_mask = env.render(mode="depth", camera_name="track")
+            # seg_obs.append(seg_mask)
             # seg_mask = env.render(camera_name="track", depth=True) # for newer mujoco versions
 
 
 
         # use the most recent ob to decide what to do
+        if ob.shape[0] != 1:
+            ob = ob.reshape(1, -1)
         obs.append(ob)
         if policy is None:
             # if no policy is provided, take a random action
             ac = env.action_space.sample()
         else:
-            ac = policy.sample_actions(ob, tempature=1.0)
+            ac = policy.sample_actions(ob, temperature=1.0)
+            ac = ac.squeeze(0)
         acs.append(ac)
         # take that action and record results
         ob, rew, terminated, truncated, _ = env.step(ac)
